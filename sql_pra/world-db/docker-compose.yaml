@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  mariadb:
+    image: mariadb:10.6.4 #使うイメージ
+    container_name: mariadb #コンテナに名前をつける
+    environment:
+      MARIADB_ROOT_PASSWORD: password #MariaDBのパスワード
+    ports:
+      - "3306:3306" #ホスト側のポート：コンテナ側のポート
+    volumes:
+      - ./world.sql:/tmp/world.sql #ホスト側のパス：コンテナ側のパス
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin #使うイメージ
+    container_name: phpmyadmin #コンテナに名前をつける
+    environment:
+      PMA_HOST: mariadb:3306 #上で設定したMariaDBのホスト側のポート
+    ports:
+      - "8040:80" #ホスト側のポート：コンテナ側のポート
