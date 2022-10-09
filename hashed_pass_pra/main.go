@@ -26,23 +26,23 @@ type City struct {
 	Population  sql.NullInt64  `json:"population,omitempty"  db:"Population"`
 }
 
-// type Country struct {
-// 	Code           string  `json:"code,omitempty" db:"Code"`
-// 	Name           string  `json:"name,omitempty" db:"Name"`
-// 	Continent      string  `json:"continent,omitempty" db:"Continent"`
-// 	Region         string  `json:"region,omitempty" db:"Region"`
-// 	SurfaceArea    string  `json:"surfaceArea,omitempty" db:"SurfaceArea"`
-// 	IndepYear      int     `json:"indepYear,omitempty" db:"IndepYear"`
-// 	Population     float32 `json:"population,omitempty" db:"Population"`
-// 	LifeExpectancy float32 `json:"lifeExpectancy,omitempty" db:"LifeExpectancy"`
-// 	GNP            float32 `json:"GNP,omitempty" db:"GNP"`
-// 	GNPOld         float32 `json:"GNPOld,omitempty" db:"GNPOld"`
-// 	LocalName      string  `json:"localName,omitempty" db:"LocalName"`
-// 	GovernmentForm string  `json:"governmentForm,omitempty" db:"GovernmentForm"`
-// 	HeadOfState    string  `json:"headOfState,omitempty" db:"HeadOfState"`
-// 	Capital        int     `json:"capital,omitempty" db:"Capital"`
-// 	Code2          string  `json:"code2,omitempty"  db:"Code2"`
-// }
+type Country struct {
+	Code           sql.NullString `json:"code,omitempty" db:"Code"`
+	Name           sql.NullString `json:"name,omitempty" db:"Name"`
+	Continent      sql.NullString `json:"continent,omitempty" db:"Continent"`
+	Region         sql.NullString `json:"region,omitempty" db:"Region"`
+	SurfaceArea    sql.NullString `json:"surfaceArea,omitempty" db:"SurfaceArea"`
+	IndepYear      int            `json:"indepYear,omitempty" db:"IndepYear"`
+	Population     float32        `json:"population,omitempty" db:"Population"`
+	LifeExpectancy float32        `json:"lifeExpectancy,omitempty" db:"LifeExpectancy"`
+	GNP            float32        `json:"GNP,omitempty" db:"GNP"`
+	GNPOld         float32        `json:"GNPOld,omitempty" db:"GNPOld"`
+	LocalName      sql.NullString `json:"localName,omitempty" db:"LocalName"`
+	GovernmentForm sql.NullString `json:"governmentForm,omitempty" db:"GovernmentForm"`
+	HeadOfState    sql.NullString `json:"headOfState,omitempty" db:"HeadOfState"`
+	Capital        int            `json:"capital,omitempty" db:"Capital"`
+	Code2          sql.NullString `json:"code2,omitempty"  db:"Code2"`
+}
 
 var (
 	db *sqlx.DB
@@ -68,15 +68,19 @@ func main() {
 		return c.String(http.StatusOK, "pong")
 	})
 	e.POST("/login", postLoginHandler)
+	// e.GET("/logout", logoutHandler)
 	e.POST("/signup", postSignUpHandler)
 
 	withLogin := e.Group("")
 	withLogin.Use(checkLogin)
 	withLogin.GET("/cities/:cityName", getCityInfoHandler)
+	withLogin.GET("/countries", getCountryInfoHandler)
+	withLogin.GET("/countriesss/:countryCode", getCountryCitiesInfoHandler)
+	withLogin.GET("/whoami", getWhoAmIHandler)
 
 	e.GET("/check", checkHandler)
 
-	e.Start(":8080")
+	e.Start(":8088")
 }
 
 type LoginRequestBody struct {
@@ -87,6 +91,15 @@ type LoginRequestBody struct {
 type User struct {
 	Username   string `json:"username,omitempty" db:"Username"`
 	HashedPass string `json:"-" db:"HashedPass"`
+}
+
+type Me struct {
+	Username string `json:"username,omitempty" db:"username"`
+}
+
+type Name_Code struct {
+	Name string `json:"name,omitempty" db:"country"`
+	Code string `json:"country,omitempty" db:"code"`
 }
 
 func postSignUpHandler(c echo.Context) error {
@@ -152,6 +165,39 @@ func postLoginHandler(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
+// func logoutHandler(c echo.Context) error {
+// 	req := LoginRequestBody{}
+// 	c.Bind(&req)
+
+// 	myUsername := getWhoAmIHandler.Me
+
+// 	user := User{}
+// 	err := db.Get(&user, "SELECT * FROM users WHERE username=?", myUsername)
+// 	if err != nil {
+// 		return c.String(http.StatusInternalServerError, fmt.Sprintf("db error: %v", err))
+// 	}
+
+// 	// err = bcrypt.CompareHashAndPassword([]byte(user.HashedPass), []byte(req.Password))
+// 	// if err != nil {
+// 	// 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+// 	// 		return c.NoContent(http.StatusForbidden)
+// 	// 	} else {
+// 	// 		return c.NoContent(http.StatusInternalServerError)
+// 	// 	}
+// 	// }
+
+// 	sess, err := session.Get("sessions", c)
+// 	if err != nil {
+// 		fmt.Println(err)
+// 		return c.String(http.StatusInternalServerError, "something wrong in getting session")
+// 	}
+// 	// sess.Values["userName"] = req.Username
+// 	sess.Values = remove(sess.Values, myUsername)
+// 	sess.Save(c.Request(), c.Response())
+
+// 	return c.NoContent(http.StatusOK)
+// }
+
 func checkLogin(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		sess, err := session.Get("sessions", c)
@@ -181,6 +227,40 @@ func getCityInfoHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, city)
 }
 
+func getCountryCitiesInfoHandler(c echo.Context) error {
+	countryCode := c.Param("countryCode")
+
+	city := City{}
+	var cityNames []Name_Code
+	rows, _ := db.Queryx("SELECT * FROM city WHERE CountryCode=?", countryCode)
+	for rows.Next() {
+		err := rows.StructScan(&city)
+		if err != nil {
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("db error: %v", err))
+		}
+		name_code := Name_Code{city.Name.String, "city.ID.String"}
+		cityNames = append(cityNames, name_code)
+	}
+
+	return c.JSON(http.StatusOK, cityNames)
+}
+
+func getCountryInfoHandler(c echo.Context) error {
+	country := Country{}
+	var countryNames []Name_Code
+	rows, _ := db.Queryx("SELECT Name, Code FROM country")
+	for rows.Next() {
+		err := rows.StructScan(&country)
+		if err != nil {
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("db error: %v", err))
+		}
+		name_code := Name_Code{country.Name.String, country.Code.String}
+		countryNames = append(countryNames, name_code)
+	}
+
+	return c.JSON(http.StatusOK, countryNames)
+}
+
 func checkHandler(c echo.Context) error {
 	sess, err := session.Get("sessions", c)
 	if err != nil {
@@ -189,4 +269,12 @@ func checkHandler(c echo.Context) error {
 	}
 	log.Println(sess)
 	return c.JSON(http.StatusOK, sess.Values["userName"])
+}
+
+func getWhoAmIHandler(c echo.Context) error {
+	sess, _ := session.Get("sessions", c)
+
+	return c.JSON(http.StatusOK, Me{
+		Username: sess.Values["userName"].(string),
+	})
 }
